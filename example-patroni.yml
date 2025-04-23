@@ -20,38 +20,15 @@ bootstrap:
       use_pg_rewind: true
       use_slots: true
       parameters:
-        timezone: 'UTC'
-        max_connections: 100
-        shared_preload_libraries: pg_stat_statements
-        shared_buffers: 64MB
-        work_mem: 16MB
-        effective_cache_size: 512MB
-        tcp_keepalives_idle: 300
-        timescaledb.telemetry_level: off
-
+        password_encryption: scram-sha-256
+      pg_hba:
+      - local postgres      postgres  trust
+      - host  replication   repl      all scram-sha-256
+      - host  all           all       all scram-sha-256
   method: local
   local:
     command: /usr/local/bin/docker-initdb.sh
     keep_existing_recovery_conf: True
-
-  initdb:
-  - encoding: UTF8
-
-  pg_hba:
-  - host  all           postgres  all md5
-  - host  replication   repl      all md5
-  - host  all           all       all md5
-
-  users:
-    postgres:
-      password: postgres
-      options:
-        - createrole
-        - createdb
-    repl:
-      password: repl
-      options:
-        - replication
 
 postgresql:
   listen: 0.0.0.0:5432

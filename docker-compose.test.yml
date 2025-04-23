@@ -1,15 +1,14 @@
-version: '3'
 services:
   # Consul
   consul:
-    image: consul
+    image: hashicorp/consul
     ports:
       - '8500:8500'
 
   # patroni
   patroni:
     build: .
-    image: nomad-pgsql-patroni:16.1-1.tsdb_gis
+    image: nomad-pgsql-patroni:16.8-1.tsdb_gis
     environment:
       PGDATA: /alloc/data
     ports:
