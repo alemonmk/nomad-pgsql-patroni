@@ -1,5 +1,5 @@
 ARG GO_VERSION=1.24.2
-ARG PG_MAJOR=16
+ARG PG_MAJOR=17
 
 ############################
 # Build tools binaries in separate image
@@ -24,7 +24,7 @@ RUN mkdir -p ${GOPATH}/src/github.com/timescale/ \
 ############################
 # Build Postgres extensions
 ############################
-FROM postgres:16.8 AS ext_build
+FROM postgres:17.4 AS ext_build
 ARG PG_MAJOR
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -105,7 +105,7 @@ RUN set -x \
 ############################
 # Add Patroni
 ############################
-FROM postgres:16.8
+FROM postgres:17.4
 ARG PG_MAJOR
 
 # Add extensions
