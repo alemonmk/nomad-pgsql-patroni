@@ -125,7 +125,7 @@ RUN set -x \
     \
     && python3 -m venv /opt/venv \
     && pip install --no-cache-dir wheel \
-    && pip install --no-cache-dir patroni[psycopg3,etcd3,consul]
+    && pip install --no-cache-dir patroni[psycopg3,etcd3,consul]==4.0.5
 
 RUN set -x \
     # Install WAL-G
