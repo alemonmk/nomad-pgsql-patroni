@@ -1,4 +1,4 @@
-ARG GO_VERSION=1.24.2
+ARG GO_VERSION=1.26.0
 ARG PG_MAJOR=16
 
 ############################
@@ -24,7 +24,7 @@ RUN mkdir -p ${GOPATH}/src/github.com/timescale/ \
 ############################
 # Build Postgres extensions
 ############################
-FROM postgres:16.8 AS ext_build
+FROM postgres:16.12-trixie AS ext_build
 ARG PG_MAJOR
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -41,8 +41,9 @@ RUN set -x \
     && cd /build
 
 # Build pgvector
+ARG PGVECTOR_VER="0.8.1"
 RUN set -x \
-    && git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git \
+    && git clone --branch v${PGVECTOR_VER} https://github.com/pgvector/pgvector.git \
     && cd pgvector \
     && make clean \
     && make\
@@ -57,55 +58,60 @@ RUN set -x \
     && cd /build
 
 # Download pg_idkit
+ARG IDKIT_VER="0.4.0"
 RUN set -x \
-    && curl -LO https://github.com/VADOSWARE/pg_idkit/releases/download/v0.2.4/pg_idkit-0.2.4-pg${PG_MAJOR}-gnu.tar.gz \
-    && tar xf pg_idkit-0.2.4-pg${PG_MAJOR}-gnu.tar.gz \
-    && cp -r pg_idkit-0.2.4/lib/postgresql/* /usr/lib/postgresql/${PG_MAJOR}/lib/ \
-    && cp -r pg_idkit-0.2.4/share/postgresql/extension/* /usr/share/postgresql/${PG_MAJOR}/extension/
+    && curl -LO https://github.com/VADOSWARE/pg_idkit/releases/download/v${IDKIT_VER}/pg_idkit-${IDKIT_VER}-pg${PG_MAJOR}-gnu.tar.gz \
+    && tar xf pg_idkit-${IDKIT_VER}-pg${PG_MAJOR}-gnu.tar.gz \
+    && cp -r pg_idkit-${IDKIT_VER}/lib/postgresql/* /usr/lib/postgresql/${PG_MAJOR}/lib/ \
+    && cp -r pg_idkit-${IDKIT_VER}/share/postgresql/extension/* /usr/share/postgresql/${PG_MAJOR}/extension/
 
 # Build postgis
+ARG POSTGIS_VER="3.6.2"
 RUN set -x \
-    && curl -LO https://download.osgeo.org/postgis/source/postgis-3.5.2.tar.gz \
-    && tar xzf postgis-3.5.2.tar.gz \
-    && cd postgis-3.5.2 \
+    && curl -LO https://download.osgeo.org/postgis/source/postgis-${POSTGIS_VER}.tar.gz \
+    && tar xzf postgis-${POSTGIS_VER}.tar.gz \
+    && cd postgis-${POSTGIS_VER} \
     && ./configure --without-interrupt-tests --without-phony-revision --enable-lto --datadir=/usr/share/postgresql-${PG_MAJOR}-postgis \
     && make clean \
     && make \
     && make install \
-    && cd /build
+    && cd ..
 
 # Build pg_cron
+ARG PGCRON_VER="1.6.7"
 RUN set -x \
-    && git clone https://github.com/citusdata/pg_cron.git \
+    && git clone --branch v${PGCRON_VER} https://github.com/citusdata/pg_cron.git \
     && cd pg_cron \
     && make clean \
     && make \
     && make install \
-    && cd /build
+    && cd ..
 
 # Build pgrouting
+ARG PGROUTING_VER="4.0.1"
 RUN set -x \
-    && curl -L https://github.com/pgRouting/pgrouting/archive/v3.7.3.tar.gz -o pgrouting-3.7.3.tar.gz \
-    && tar xf pgrouting-3.7.3.tar.gz \
-    && cd pgrouting-3.7.3 \
+    && curl -L https://github.com/pgRouting/pgrouting/archive/v${PGROUTING_VER}.tar.gz -o pgrouting-${PGROUTING_VER}.tar.gz \
+    && tar xf pgrouting-${PGROUTING_VER}.tar.gz \
+    && cd pgrouting-${PGROUTING_VER} \
     && mkdir build && cd build \
     && cmake .. \
     && make \
     && make install \
-    && cd /build
+    && cd ..
 
 # Build timescaledb
+ARG TIMESCALEDB_VER="2.25.1"
 RUN set -x \
-    && git clone https://github.com/timescale/timescaledb \
-    && cd timescaledb && git checkout 2.19.3 \
+    && git clone --branch ${TIMESCALEDB_VER} https://github.com/timescale/timescaledb \
+    && cd timescaledb \
     && ./bootstrap \
-    && cd build && make \
-    && make install
+    && cd build && make && make install \
+    && cd ..
 
 ############################
 # Add Patroni
 ############################
-FROM postgres:16.8
+FROM postgres:16.12-trixie
 ARG PG_MAJOR
 
 # Add extensions
@@ -121,22 +127,22 @@ RUN set -x \
     && apt-get update -y \
     && apt-get upgrade -y \
     && apt-get install -y curl python3 python3-pip python3-venv \
-    && apt-get install -y libgdal32 libgeos-c1v5 libjson-c5 libproj25 libprotobuf-c1 libsfcgal1 \
+    && apt-get install -y libgdal36 libgeos-c1v5 libjson-c5 libproj25 libprotobuf-c1 libsfcgal2 \
     \
     && python3 -m venv /opt/venv \
     && pip install --no-cache-dir wheel \
-    && pip install --no-cache-dir patroni[psycopg3,etcd3,consul]
+    && pip install --no-cache-dir patroni[psycopg3,etcd3,consul]==4.1.0
 
 RUN set -x \
     # Install WAL-G
-    && curl -LO https://github.com/wal-g/wal-g/releases/download/v3.0.7/wal-g-pg-ubuntu-24.04-amd64 \
+    && curl -LO https://github.com/wal-g/wal-g/releases/download/v3.0.8/wal-g-pg-ubuntu-24.04-amd64 \
     && install -oroot -groot -m755 wal-g-pg-ubuntu-24.04-amd64 /usr/local/bin/wal-g \
     && rm wal-g-pg-ubuntu-24.04-amd64 \
     \
     # Install vaultenv
-    && curl -LO https://github.com/channable/vaultenv/releases/download/v0.18.0/vaultenv-0.18.0-linux-musl \
-    && install -oroot -groot -m755 vaultenv-0.18.0-linux-musl /usr/bin/vaultenv \
-    && rm vaultenv-0.18.0-linux-musl
+    && curl -LO https://github.com/channable/vaultenv/releases/download/v0.19.0/vaultenv-0.19.0-linux-musl \
+    && install -oroot -groot -m755 vaultenv-0.19.0-linux-musl /usr/bin/vaultenv \
+    && rm vaultenv-0.19.0-linux-musl
 
 RUN mkdir -p /docker-entrypoint-initdb.d
 COPY ./files/000_shared_libs.sh /docker-entrypoint-initdb.d/000_shared_libs.sh
