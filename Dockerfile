@@ -3,7 +3,7 @@ ARG PG_MAJOR=17
 ############################
 # Build tools binaries in separate image
 ############################
-FROM golang:1.25.5 AS tools
+FROM golang:1.26.0 AS tools
 
 RUN mkdir -p ${GOPATH}/src/github.com/timescale/ \
     && cd ${GOPATH}/src/github.com/timescale/ \
@@ -23,15 +23,14 @@ RUN mkdir -p ${GOPATH}/src/github.com/timescale/ \
 ############################
 # Build Postgres extensions
 ############################
-FROM postgres:17.7 AS ext_build
+FROM postgres:17.8 AS ext_build
 ARG PG_MAJOR
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN echo 'APT::Install-Recommends "false";' >> /etc/apt/apt.conf.d/01norecommend \
-    && echo 'APT::Install-Suggests "false";' >> /etc/apt/apt.conf.d/01norecommend
-
 RUN set -x \
+    && echo 'APT::Install-Recommends "false";' >> /etc/apt/apt.conf.d/01norecommend \
+    && echo 'APT::Install-Suggests "false";' >> /etc/apt/apt.conf.d/01norecommend \
     && apt-get update -y \
     && apt-get install -y git curl apt-transport-https ca-certificates build-essential cmake pkgconf libpq-dev postgresql-server-dev-${PG_MAJOR} \
     # PostGIS dependencies
@@ -42,8 +41,9 @@ RUN set -x \
     && cd /build
 
 # Build pgvector
+ARG PGVECTOR_VER="0.8.1"
 RUN set -x \
-    && git clone --branch v0.8.1 https://github.com/pgvector/pgvector.git \
+    && git clone --branch v${PGVECTOR_VER} https://github.com/pgvector/pgvector.git \
     && cd pgvector \
     && make clean \
     && make \
@@ -66,7 +66,7 @@ RUN set -x \
     && cp -r pg_idkit-${IDKIT_VER}/share/postgresql/extension/* /usr/share/postgresql/${PG_MAJOR}/extension/
 
 # Build postgis
-ARG POSTGIS_VER="3.6.1"
+ARG POSTGIS_VER="3.6.2"
 RUN set -x \
     && curl -LO https://download.osgeo.org/postgis/source/postgis-${POSTGIS_VER}.tar.gz \
     && tar xzf postgis-${POSTGIS_VER}.tar.gz \
@@ -78,8 +78,9 @@ RUN set -x \
     && cd ..
 
 # Build pg_cron
+ARG PGCRON_VER="1.6.7"
 RUN set -x \
-    && git clone --branch v1.6.7 https://github.com/citusdata/pg_cron.git \
+    && git clone --branch v${PGCRON_VER} https://github.com/citusdata/pg_cron.git \
     && cd pg_cron \
     && make clean \
     && make \
@@ -87,7 +88,7 @@ RUN set -x \
     && cd ..
 
 # Build pgrouting
-ARG PGROUTING_VER="4.0.0"
+ARG PGROUTING_VER="4.0.1"
 RUN set -x \
     && curl -L https://github.com/pgRouting/pgrouting/archive/v${PGROUTING_VER}.tar.gz -o pgrouting-${PGROUTING_VER}.tar.gz \
     && tar xf pgrouting-${PGROUTING_VER}.tar.gz \
@@ -99,13 +100,13 @@ RUN set -x \
     && cd ..
 
 # Build timescaledb
-ARG TIMESCALEDB_VER="2.24.0"
+ARG TIMESCALEDB_VER="2.25.1"
 RUN set -x \
     && git clone --branch ${TIMESCALEDB_VER} https://github.com/timescale/timescaledb \
     && cd timescaledb \
     && ./bootstrap \
     && cd build && make && make install \
-    && cd ..
+    && cd /build
 
 ARG PGROONGA_VER="4.0.5"
 RUN set -x \
@@ -115,17 +116,43 @@ RUN set -x \
     && make install \
     && cd ..
 
+FROM rust:1.93.1-trixie AS ext_build_paradedb
+ARG PG_MAJOR
+ARG PGSEARCH_VER="0.21.8"
+ARG PG_PIN="17.8-1.pgdg13+1"
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH=/usr/lib/postgresql/${PG_MAJOR}/bin:${PATH}
+
+RUN echo 'APT::Install-Recommends "false";' >> /etc/apt/apt.conf.d/01norecommend \
+    && echo 'APT::Install-Suggests "false";' >> /etc/apt/apt.conf.d/01norecommend \
+    && install -d -m 0755 /usr/share/keyrings \
+    && wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | tee /usr/share/keyrings/postgresql.asc > /dev/null \
+    && echo "deb [signed-by=/usr/share/keyrings/postgresql.asc] http://apt.postgresql.org/pub/repos/apt trixie-pgdg main ${PG_MAJOR}" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y postgresql-${PG_MAJOR}=${PG_PIN} postgresql-server-dev-${PG_MAJOR}=${PG_PIN}
+
+RUN set -x \
+    && mkdir /build \
+    && cd /build \
+    && git clone --branch v${PGSEARCH_VER} https://github.com/paradedb/paradedb \
+    && cd paradedb \
+    && make install-pgrx \
+    && make pgrx-init \
+    && make
+
 ############################
 # Add Patroni
 ############################
-FROM postgres:17.7
+FROM postgres:17.8
 ARG PG_MAJOR
-ARG POSTGIS_VERSION="3.6.1"
 
 # Add extensions
 COPY --from=tools /go/bin/* /usr/local/bin/
 COPY --from=ext_build /usr/share/postgresql/${PG_MAJOR}/ /usr/share/postgresql/${PG_MAJOR}/
 COPY --from=ext_build /usr/lib/postgresql/${PG_MAJOR}/ /usr/lib/postgresql/${PG_MAJOR}/
+COPY --from=ext_build_paradedb /build/paradedb/target/release/pg_search-pg17/usr/share/postgresql/17 /usr/share/postgresql/${PG_MAJOR}
+COPY --from=ext_build_paradedb /build/paradedb/target/release/pg_search-pg17/usr/lib/postgresql/17 /usr/lib/postgresql/${PG_MAJOR}
 
 ENV PATH="/opt/venv/bin:$PATH"
 
@@ -141,11 +168,9 @@ RUN set -x \
     \
     && python3 -m venv /opt/venv \
     && pip install --no-cache-dir wheel \
-    && pip install --no-cache-dir patroni[psycopg3,etcd3,consul]==4.1.0
-
-RUN set -x \
+    && pip install --no-cache-dir patroni[psycopg3,etcd3,consul]==4.1.0 \
     # Install WAL-G
-    && curl -LO https://github.com/wal-g/wal-g/releases/download/v3.0.7/wal-g-pg-ubuntu-24.04-amd64 \
+    && curl -LO https://github.com/wal-g/wal-g/releases/download/v3.0.8/wal-g-pg-ubuntu-24.04-amd64 \
     && install -oroot -groot -m755 wal-g-pg-ubuntu-24.04-amd64 /usr/local/bin/wal-g \
     && rm wal-g-pg-ubuntu-24.04-amd64 \
     \

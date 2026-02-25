@@ -8,7 +8,7 @@ It also comes pre-baked with some tools and extensions.
 
 | Name | Version | Link |
 |--|--|--|
-| WAL-G | 3.0.7 | https://github.com/wal-g/wal-g |
+| WAL-G | 3.0.8 | https://github.com/wal-g/wal-g |
 | Patroni | 4.1.0 | https://github.com/zalando/patroni |
 | vaultenv | 0.19.0 | https://github.com/channable/vaultenv |
 
@@ -16,13 +16,14 @@ It also comes pre-baked with some tools and extensions.
 
 | Name | Version | Link |
 |--|--|--|
-| Timescale | 2.24.0 | https://www.timescale.com |
-| PostGIS | 3.6.1 | https://postgis.net |
+| Timescale | 2.25.1 | https://www.timescale.com |
+| PostGIS | 3.6.2 | https://postgis.net |
 | pg_cron | 1.6.7 | https://github.com/citusdata/pg_cron |
 | pg_idkit | 0.4.0 | https://github.com/VADOSWARE/pg_idkit |
-| pgRouting | 4.0.0 | https://pgrouting.org |
+| pgRouting | 4.0.1 | https://pgrouting.org |
 | postgres-json-schema | 0.1.1 | https://github.com/gavinwahl/postgres-json-schema |
 | vector | 0.8.1 | https://github.com/ankane/pgvector |
+| ParadeDB | 0.21.8 | https://www.paradedb.com/ |
 | PGroonga | 4.0.5 | https://pgroonga.github.io/ |
 
 ### Still running an older Postgres version?
@@ -36,7 +37,7 @@ These branches are *mostly* supported containing older versions. If I get behind
 ## Usage
 
 ```hcl
-job "postgres-16" {
+job "postgres-17" {
   type = "service"
   datacenters = ["dc1"]
 
@@ -72,7 +73,7 @@ EOL
       }
 
       config {
-        image = "ghcr.io/ccakes/nomad-pgsql-patroni:16.2-1.tsdb_gis"
+        image = "ghcr.io/ccakes/nomad-pgsql-patroni:17.8-1.tsdb_gis"
 
         ports = ["api", "pg"]
       }
