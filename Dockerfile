@@ -1,10 +1,9 @@
-ARG GO_VERSION=1.26.0
 ARG PG_MAJOR=16
 
 ############################
 # Build tools binaries in separate image
 ############################
-FROM golang:${GO_VERSION} AS tools
+FROM golang:1.26.1-trixie AS tools
 
 RUN mkdir -p ${GOPATH}/src/github.com/timescale/ \
     && cd ${GOPATH}/src/github.com/timescale/ \
@@ -24,17 +23,17 @@ RUN mkdir -p ${GOPATH}/src/github.com/timescale/ \
 ############################
 # Build Postgres extensions
 ############################
-FROM postgres:16.12-trixie AS ext_build
+FROM postgres:16.13-trixie AS ext_build
 ARG PG_MAJOR
+ARG PG_PIN="16.13-1*"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN echo 'APT::Install-Recommends "false";' >> /etc/apt/apt.conf.d/01norecommend \
-    && echo 'APT::Install-Suggests "false";' >> /etc/apt/apt.conf.d/01norecommend
-
-RUN set -x \
+    && echo 'APT::Install-Suggests "false";' >> /etc/apt/apt.conf.d/01norecommend \
+    && apt-mark hold postgresql-16 postgresql-client-16 \
     && apt-get update -y \
-    && apt-get install -y git curl apt-transport-https ca-certificates build-essential cmake pkgconf libpq-dev postgresql-server-dev-${PG_MAJOR} \
+    && apt-get install -y git curl apt-transport-https ca-certificates build-essential cmake pkgconf libpq-dev postgresql-server-dev-${PG_MAJOR}=${PG_PIN} \
     # PostGIS dependencies
     && apt-get install -y bison libgdal-dev libgeos-dev libjson-c-dev libpcre2-dev libproj-dev libprotobuf-c-dev protobuf-c-compiler libsfcgal-dev libxml2-dev libxml2-utils \
     && mkdir /build \
@@ -111,7 +110,7 @@ RUN set -x \
 ############################
 # Add Patroni
 ############################
-FROM postgres:16.12-trixie
+FROM postgres:16.13-trixie
 ARG PG_MAJOR
 
 # Add extensions
@@ -124,6 +123,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN set -x \
     && echo 'APT::Install-Recommends "false";' >> /etc/apt/apt.conf.d/01norecommend \
     && echo 'APT::Install-Suggests "false";' >> /etc/apt/apt.conf.d/01norecommend \
+    && apt-mark hold postgresql-16 postgresql-client-16 \
     && apt-get update -y \
     && apt-get upgrade -y \
     && apt-get install -y curl python3 python3-pip python3-venv \
