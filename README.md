@@ -26,14 +26,6 @@ It also comes pre-baked with some tools and extensions.
 | ParadeDB | 0.21.8 | https://www.paradedb.com/ |
 | PGroonga | 4.0.5 | https://pgroonga.github.io/ |
 
-### Still running an older Postgres version?
-
-These branches are *mostly* supported containing older versions. If I get behind on a point release feel free to raise an issue :thumbsup:
-
-- [`pg-14`](https://github.com/ccakes/nomad-pgsql-patroni/tree/pg-14)
-- [`pg-13`](https://github.com/ccakes/nomad-pgsql-patroni/tree/pg-13)
-- [`pg-12`](https://github.com/ccakes/nomad-pgsql-patroni/tree/pg-12)
-
 ## Usage
 
 ```hcl
