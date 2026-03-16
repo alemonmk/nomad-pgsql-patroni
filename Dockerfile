@@ -25,14 +25,16 @@ RUN mkdir -p ${GOPATH}/src/github.com/timescale/ \
 ############################
 FROM postgres:17.8 AS ext_build
 ARG PG_MAJOR
+ARG PG_PIN="17.8-1*"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN set -x \
     && echo 'APT::Install-Recommends "false";' >> /etc/apt/apt.conf.d/01norecommend \
     && echo 'APT::Install-Suggests "false";' >> /etc/apt/apt.conf.d/01norecommend \
+    && apt-mark hold postgresql-17 postgresql-client-17 \
     && apt-get update -y \
-    && apt-get install -y git curl apt-transport-https ca-certificates build-essential cmake pkgconf libpq-dev postgresql-server-dev-${PG_MAJOR} \
+    && apt-get install -y git curl apt-transport-https ca-certificates build-essential cmake pkgconf libpq-dev postgresql-server-dev-${PG_MAJOR}=${PG_PIN} \
     # PostGIS dependencies
     && apt-get install -y bison libgdal-dev libgeos-dev libjson-c-dev libpcre2-dev libproj-dev libprotobuf-c-dev protobuf-c-compiler libsfcgal-dev libxml2-dev libxml2-utils \
     # PGroonga WAL support dependency
@@ -119,7 +121,7 @@ RUN set -x \
 FROM rust:1.93.1-trixie AS ext_build_paradedb
 ARG PG_MAJOR
 ARG PGSEARCH_VER="0.21.8"
-ARG PG_PIN="17.8-1.pgdg13+1"
+ARG PG_PIN="17.8-1*"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH=/usr/lib/postgresql/${PG_MAJOR}/bin:${PATH}
@@ -161,6 +163,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN set -x \
     && echo 'APT::Install-Recommends "false";' >> /etc/apt/apt.conf.d/01norecommend \
     && echo 'APT::Install-Suggests "false";' >> /etc/apt/apt.conf.d/01norecommend \
+    && apt-mark hold postgresql-17 postgresql-client-17 \
     && apt-get update -y \
     && apt-get upgrade -y \
     && apt-get install -y curl python3 python3-pip python3-venv \
