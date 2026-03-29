@@ -38,9 +38,10 @@ RUN set -x \
     # PostGIS dependencies
     && apt-get install -y bison libgdal-dev libgeos-dev libjson-c-dev libpcre2-dev libproj-dev libprotobuf-c-dev protobuf-c-compiler libsfcgal-dev libxml2-dev libxml2-utils \
     # PGroonga WAL support dependency
-    && apt-get install -y libgroonga-dev libmsgpack-dev \
-    && mkdir /build \
-    && cd /build
+    && apt-get install -y libgroonga-dev libmsgpack-dev
+
+RUN set -x && mkdir /build
+WORKDIR /build
 
 # Build pgvector
 ARG PGVECTOR_VER="0.8.1"
@@ -49,15 +50,13 @@ RUN set -x \
     && cd pgvector \
     && make clean \
     && make \
-    && make install \
-    && cd ..
+    && make install
 
 # Build postgres-json-schema
 RUN set -x \
     && git clone https://github.com/gavinwahl/postgres-json-schema \
     && cd postgres-json-schema \
-    && make install \
-    && cd ..
+    && make install
 
 # Download pg_idkit
 ARG IDKIT_VER="0.4.0"
@@ -76,8 +75,7 @@ RUN set -x \
     && ./configure --without-interrupt-tests --without-phony-revision --enable-lto --datadir=/usr/share/postgresql-${PG_MAJOR}-postgis \
     && make clean \
     && make \
-    && make install \
-    && cd ..
+    && make install
 
 # Build pg_cron
 ARG PGCRON_VER="1.6.7"
@@ -86,8 +84,7 @@ RUN set -x \
     && cd pg_cron \
     && make clean \
     && make \
-    && make install \
-    && cd ..
+    && make install
 
 # Build pgrouting
 ARG PGROUTING_VER="4.0.1"
@@ -98,8 +95,7 @@ RUN set -x \
     && mkdir build && cd build \
     && cmake .. \
     && make \
-    && make install \
-    && cd ..
+    && make install
 
 # Build timescaledb
 ARG TIMESCALEDB_VER="2.25.1"
@@ -107,16 +103,14 @@ RUN set -x \
     && git clone --branch ${TIMESCALEDB_VER} https://github.com/timescale/timescaledb \
     && cd timescaledb \
     && ./bootstrap \
-    && cd build && make && make install \
-    && cd /build
+    && cd build && make && make install
 
 ARG PGROONGA_VER="4.0.5"
 RUN set -x \
     && git clone --branch ${PGROONGA_VER} --recursive https://github.com/pgroonga/pgroonga \
     && cd pgroonga \
     && make HAVE_MSGPACK=1 MSGPACK_PACKAGE_NAME=msgpack-c \
-    && make install \
-    && cd ..
+    && make install
 
 FROM rust:1.93.1-trixie AS ext_build_paradedb
 ARG PG_MAJOR
@@ -136,12 +130,12 @@ RUN echo 'APT::Install-Recommends "false";' >> /etc/apt/apt.conf.d/01norecommend
 
 RUN set -x \
     && mkdir /build \
-    && cd /build \
-    && git clone --branch v${PGSEARCH_VER} https://github.com/paradedb/paradedb \
-    && cd paradedb \
-    && make install-pgrx \
-    && make pgrx-init \
-    && make
+    && cd /build && git clone --branch v${PGSEARCH_VER} https://github.com/paradedb/paradedb
+WORKDIR /build/paradedb
+
+RUN set -x && make install-pgrx
+RUN set -x && make pgrx-init
+RUN set -x && make
 
 ############################
 # Add Patroni
@@ -168,6 +162,7 @@ RUN set -x \
     && apt-get upgrade -y \
     && apt-get install -y curl python3 python3-pip python3-venv \
     && apt-get install -y libgdal36 libgeos-c1v5 libjson-c5 libproj25 libprotobuf-c1 libsfcgal2 libmsgpack-c2 libgroonga0t64 \
+    && apt-get clean \
     \
     && python3 -m venv /opt/venv \
     && pip install --no-cache-dir wheel \
