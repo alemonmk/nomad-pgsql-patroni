@@ -23,7 +23,7 @@ It also comes pre-baked with some tools and extensions.
 | pgRouting | 4.0.1 | https://pgrouting.org |
 | postgres-json-schema | 0.1.1 | https://github.com/gavinwahl/postgres-json-schema |
 | vector | 0.8.1 | https://github.com/ankane/pgvector |
-| ParadeDB | 0.21.8 | https://www.paradedb.com/ |
+| ParadeDB | 0.22.3 | https://www.paradedb.com/ |
 | PGroonga | 4.0.5 | https://pgroonga.github.io/ |
 
 ## Usage

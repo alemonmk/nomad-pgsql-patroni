@@ -114,7 +114,7 @@ RUN set -x \
 
 FROM rust:1.93.1-trixie AS ext_build_paradedb
 ARG PG_MAJOR
-ARG PGSEARCH_VER="0.21.8"
+ARG PGSEARCH_VER="0.22.3"
 ARG PG_PIN="17.8-1*"
 
 ENV DEBIAN_FRONTEND=noninteractive
