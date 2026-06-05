@@ -35,8 +35,6 @@ jobs:
       - name: Build Docker image
         uses: docker/build-push-action@v6
         with:
-          cache-to: type=gha,mode=max,ignore-error=true
-          pull: true
           push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
