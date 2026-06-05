@@ -112,31 +112,6 @@ RUN set -x \
     && make HAVE_MSGPACK=1 MSGPACK_PACKAGE_NAME=msgpack-c \
     && make install
 
-FROM rust:1.93.1-trixie AS ext_build_paradedb
-ARG PG_MAJOR
-ARG PGSEARCH_VER="0.22.3"
-ARG PG_PIN="17.8-1*"
-
-ENV DEBIAN_FRONTEND=noninteractive
-ENV PATH=/usr/lib/postgresql/${PG_MAJOR}/bin:${PATH}
-
-RUN echo 'APT::Install-Recommends "false";' >> /etc/apt/apt.conf.d/01norecommend \
-    && echo 'APT::Install-Suggests "false";' >> /etc/apt/apt.conf.d/01norecommend \
-    && install -d -m 0755 /usr/share/keyrings \
-    && wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | tee /usr/share/keyrings/postgresql.asc > /dev/null \
-    && echo "deb [signed-by=/usr/share/keyrings/postgresql.asc] http://apt.postgresql.org/pub/repos/apt trixie-pgdg main ${PG_MAJOR}" > /etc/apt/sources.list.d/pgdg.list \
-    && apt-get update \
-    && apt-get install -y postgresql-${PG_MAJOR}=${PG_PIN} postgresql-server-dev-${PG_MAJOR}=${PG_PIN}
-
-RUN set -x \
-    && mkdir /build \
-    && cd /build && git clone --branch v${PGSEARCH_VER} https://github.com/paradedb/paradedb
-WORKDIR /build/paradedb
-
-RUN set -x && make install-pgrx
-RUN set -x && make pgrx-init
-RUN set -x && make
-
 ############################
 # Add Patroni
 ############################
@@ -147,8 +122,6 @@ ARG PG_MAJOR
 COPY --from=tools /go/bin/* /usr/local/bin/
 COPY --from=ext_build /usr/share/postgresql/${PG_MAJOR}/ /usr/share/postgresql/${PG_MAJOR}/
 COPY --from=ext_build /usr/lib/postgresql/${PG_MAJOR}/ /usr/lib/postgresql/${PG_MAJOR}/
-COPY --from=ext_build_paradedb /build/paradedb/target/release/pg_search-pg17/usr/share/postgresql/17 /usr/share/postgresql/${PG_MAJOR}
-COPY --from=ext_build_paradedb /build/paradedb/target/release/pg_search-pg17/usr/lib/postgresql/17 /usr/lib/postgresql/${PG_MAJOR}
 
 ENV PATH="/opt/venv/bin:$PATH"
 
